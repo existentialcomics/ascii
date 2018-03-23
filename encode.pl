@@ -41,7 +41,8 @@ my $dir = '/tmp/.asciimovie' . rand(10000000) . '/';
 
 mkdir $dir;
 
-my $cmd = sprintf('avconv -i %s -r %s -f image2 %s%s.jpg &', shell_quote($inputFile), $fps, $dir,  '%0d');
+#my $cmd = sprintf('avconv -i %s -r %s -f image2 %s%s.jpg &', shell_quote($inputFile), $fps, $dir,  '%0d');
+my $cmd = sprintf('ffmpeg -i %s -r %s -f image2 %s%s.jpg &', shell_quote($inputFile), $fps, $dir,  '%0d');
 
 print "$cmd\n";
 system $cmd;
@@ -68,6 +69,7 @@ while ($continue == 1){
         { 
             'filter' => $options{'edgeOnly'},
             'outfile' => $outputFile,
+            'backgroundColor' => $options{'backgroundcolor'},
             'append' => 1
         } );
 	unlink $file;

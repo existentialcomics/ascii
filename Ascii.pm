@@ -8,7 +8,7 @@ use List::Util qw( reduce max);
 use Time::HiRes qw(usleep);
 use Term::ANSIColor 4.00 qw(RESET color :constants256);
 use Data::Dumper;
-use Math::SimpleHisto::XS;
+#use Math::SimpleHisto::XS;
 use Image::Magick;
 
 my @master_ascii;
@@ -57,35 +57,35 @@ my %colors = (
 #	'white'    => '0,0,0',
 #);
 
-sub _autoContrast {
-	my $gdimg = shift;
-	my $hist = Math::SimpleHisto::XS->new(
-		min => 0, max => 256, nbins => $#master_ascii,
-	);
-
-	my ($w, $h) = $gdimg->getBounds();
-	for my $x (0 .. $w){
-		for my $y (0 .. $h){
-			my $index = $gdimg->getPixel($x, $y);
-			my ($r,$g,$b) = $gdimg->rgb($index);
-			$hist->fill(($r+$g+$b) / 3);
-		}
-	}
-	my $centers = $hist->bin_centers();
-	foreach my $i (@$centers){
-		print "$i\n";
-	}
-	
-	print "mean: " . $hist->mean() . "\n";
-	print "median: " . $hist->median() . "\n";
-	print "bin for 128: " . $hist->find_bin(128) . "\n";
-	$hist->normalize(0.5);
-	print "------------------\n";
-	print "mean: " . $hist->mean() . "\n";
-	print "median: " . $hist->median() . "\n";
-	print "bin for 128: " . $hist->find_bin(128) . "\n";
-	print "\n";
-}
+#sub _autoContrast {
+#	my $gdimg = shift;
+#	my $hist = Math::SimpleHisto::XS->new(
+#		min => 0, max => 256, nbins => $#master_ascii,
+#	);
+        #
+#	my ($w, $h) = $gdimg->getBounds();
+#	for my $x (0 .. $w){
+#		for my $y (0 .. $h){
+#			my $index = $gdimg->getPixel($x, $y);
+#			my ($r,$g,$b) = $gdimg->rgb($index);
+#			$hist->fill(($r+$g+$b) / 3);
+#		}
+#	}
+#	my $centers = $hist->bin_centers();
+#	foreach my $i (@$centers){
+#		print "$i\n";
+#	}
+#	
+#	print "mean: " . $hist->mean() . "\n";
+#	print "median: " . $hist->median() . "\n";
+#	print "bin for 128: " . $hist->find_bin(128) . "\n";
+#	$hist->normalize(0.5);
+#	print "------------------\n";
+#	print "mean: " . $hist->mean() . "\n";
+#	print "median: " . $hist->median() . "\n";
+#	print "bin for 128: " . $hist->find_bin(128) . "\n";
+#	print "\n";
+#}
 
 sub getImage_magick {
 	my ($file, $size, $options) = @_;

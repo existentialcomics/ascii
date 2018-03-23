@@ -1,0 +1,5 @@
+yum install perl-GD
+cpan Term::ANSIColor
+cpan Term::Screen
+cpan String::ShellQuote
+yum install ImageMagick-perl
