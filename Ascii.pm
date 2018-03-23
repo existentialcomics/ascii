@@ -6,16 +6,20 @@ use GD;
 use strict;
 use List::Util qw( reduce max);
 use Time::HiRes qw(usleep);
-#use Term::ANSIColor;
 use Term::ANSIColor 4.00 qw(RESET color :constants256);
 use Data::Dumper;
 use Math::SimpleHisto::XS;
 use Image::Magick;
 
 my @master_ascii;
+my @alt_ascii;
 #my @master_ascii = (qw(W M 0 @ N & ), ',', qw(' - . `), ' ');
 push @master_ascii, " ";
 push @master_ascii, reverse qw(@ 8 & * = + , .);
+#push @master_ascii, reverse qw(@ # 8 * = + º .);
+#push @alt_ascii, qw(█ ▓ ▒ ░);
+push @alt_ascii, qw(@ 8 & * = + , .);
+push @alt_ascii, " ";
 my $aspectRatio = .6;
 
 my $defaultFilterThreshold = .2;
@@ -84,7 +88,7 @@ sub _autoContrast {
 }
 
 sub getImage_magick {
-	my ($file, $width, $options) = @_;
+	my ($file, $size, $options) = @_;
 	my %image = (
 		base  => {},
 		color => {},
@@ -93,7 +97,13 @@ sub getImage_magick {
 	$img->read($file);
 	my $h = $img->[0]->Get('Height');
 	my $w = $img->[0]->Get('Width');
-	my $height = ($h * ($width / $w)) * $aspectRatio;
+    my $width = $size;
+    my $height = $size;
+    if ($options->{byHeight}){
+        $width = ($w * ($height / $h)) / $aspectRatio;
+    } else {
+        $height = ($h * ($size / $w)) * $aspectRatio;
+    }
 	$img->[0]->Scale("width" => $width, "height" => $height);
 	$h = $img->[0]->Get('Height');
 	$w = $img->[0]->Get('Width');
@@ -101,7 +111,15 @@ sub getImage_magick {
 	$image{'base'}->{'width'} = $h;
 	$image{'base'}->{'height'} = $w;
 
-	$img->Equalize('channel' => 'all');
+    #if ($options->{autocontrast}){
+    #$img->Equalize('channel' => 'all');
+        #$img->Equalize('channel' => 'Alpha');
+    #}
+    #$img->Modulate('brightness' => 150);
+    #$img->Modulate('saturation' => 100);
+    #$img->Contrast('true');
+    #$img->Contrast('true');
+    
 	my @pixels = $img->GetPixels(map=>'IRGB', height=>$height, width=>$width, normalize=>1);
 	for my $row (1 .. $h){
 		for my $col (1 .. $w){
@@ -126,6 +144,7 @@ sub overlayColor {
 sub getImage {
 	my ($file, $width, $options) = @_;
 	return getImage_magick($file, $width, $options);
+
 	my %image = (
 		base  => {},
 		color => {},
@@ -135,9 +154,9 @@ sub getImage {
 	my $gdimg = GD::Image->newFromJpeg($file)  or die "failed to open $file";
 	my ($w, $h) = $gdimg->getBounds();
 
-	$options->{'brightness'} = 30;
-	$options->{'contrast'} = 40;
-	$options->{'autocontrast'} = 5;
+    #$options->{'brightness'} = 30;
+    #$options->{'contrast'} = 40;
+	#$options->{'autocontrast'} = 5;
 
 	if ($options->{'autocontrast'}){
 		my ($b, $c) = _autoContrast($gdimg, $options->{'autocontrast'});
@@ -222,18 +241,34 @@ sub edgeFilter {
 	my $image = shift;
 	my $filterThreshold = shift;
 	if (!defined($filterThreshold)){ $filterThreshold = $defaultFilterThreshold; }
-	foreach my $w (1 .. $image->{'base'}->{'width'}){
-		foreach my $h (1 .. $image->{'base'}->{'height'}){
+	foreach my $w (1 .. $image->{'base'}->{'width'} - 1){
+		foreach my $h (1 .. $image->{'base'}->{'height'} - 1){
 			my @nine = (
-				[ $image->{'base'}->{'img'}->{$w - 1}->{$h - 1}, $image->{'base'}->{'img'}->{$w - 0}->{$h - 1},$image->{'base'}->{'img'}->{$w + 1}->{$h - 1} ],
-				[ $image->{'base'}->{'img'}->{$w - 1}->{$h - 0}, $image->{'base'}->{'img'}->{$w - 0}->{$h - 0},$image->{'base'}->{'img'}->{$w + 1}->{$h - 0} ],
-				[ $image->{'base'}->{'img'}->{$w - 1}->{$h + 1}, $image->{'base'}->{'img'}->{$w - 0}->{$h + 1},$image->{'base'}->{'img'}->{$w + 1}->{$h + 1} ]
+				[
+                    $image->{'base'}->{'img'}->{$w - 1}->{$h - 1},
+                    $image->{'base'}->{'img'}->{$w - 0}->{$h - 1},
+                    $image->{'base'}->{'img'}->{$w + 1}->{$h - 1}
+                ],
+				[ 
+                    $image->{'base'}->{'img'}->{$w - 1}->{$h - 0},
+                    $image->{'base'}->{'img'}->{$w - 0}->{$h - 0},
+                    $image->{'base'}->{'img'}->{$w + 1}->{$h - 0}
+                ],
+				[
+                    $image->{'base'}->{'img'}->{$w - 1}->{$h + 1},
+                    $image->{'base'}->{'img'}->{$w - 0}->{$h + 1},
+                    $image->{'base'}->{'img'}->{$w + 1}->{$h + 1}
+                ]
 			);
 			my %edgeValues = ();
-			$edgeValues{_compareEastWest(\@nine)} = "|";
-			$edgeValues{_compareNorthSouth(\@nine)} = "_";
-			$edgeValues{_compareNWSE(\@nine)} = "/";
-			$edgeValues{_compareNESW(\@nine)} = "\\";
+			#$edgeValues{_compareEastWest(\@nine)} = "|";
+			#$edgeValues{_compareNorthSouth(\@nine)} = "_";
+			#$edgeValues{_compareNWSE(\@nine)} = "/";
+			#$edgeValues{_compareNESW(\@nine)} = "\\";
+			$edgeValues{_compareEastWest(\@nine)} = "│";
+			$edgeValues{_compareNorthSouth(\@nine)} = "─";
+			$edgeValues{_compareNWSE(\@nine)} = "╱";
+			$edgeValues{_compareNESW(\@nine)} = "╲";
 
 			my $highest = max keys %edgeValues;
 			if ($highest > $filterThreshold){
@@ -247,7 +282,12 @@ sub edgeFilter {
 
 sub _closestColor {
 	my ($averageRed, $averageGreen, $averageBlue) = @_;
-	return sprintf('RGB%.0f%.0f%.0f', $averageRed * 5, $averageGreen * 5, $averageBlue * 5);
+    if (abs($averageRed - $averageGreen) < 0.1 && abs($averageRed - $averageBlue) < 0.1 && abs($averageGreen - $averageBlue) < 0.1 ){
+	    return sprintf('GREY%.0f', ($averageRed + $averageGreen + $averageBlue) / 3 * 23);
+    } else {
+        return sprintf('RGB%.0f%.0f%.0f', $averageRed * 5, $averageGreen * 5, $averageBlue * 5);
+    }
+
 	my $closestColor = 'white';
 	my $smallestDiff = 1000;
 	foreach my $color (keys %colors){
@@ -325,15 +365,46 @@ sub printImage {
 	my $options = shift;
 	my $out;
 	if (defined($options->{'outfile'})){
-		open $out, ">>", $options->{'outfile'};
+		open $out, ($options->{'append'} ? ">>" : ">"), $options->{'outfile'};
 	} else {
 		$out = *STDOUT;	
 	}
+    my @textLines = ();
+
+    if ($options->{text}){
+        my @origTextLines = split("\n", $options->{text});
+        my $width = 0;
+        foreach my $line (@origTextLines){
+            if (length($line) > $width){ $width = length($line); }
+        }
+
+        push @textLines, '─────' . '─' x $width . '─╮';
+        my $count = 0;
+        foreach my $line (@origTextLines){
+            $count++;
+            if ($count == 1){
+                push @textLines, sprintf(' ╲   ' . "%-" . $width . "s │", $line);
+            } elsif($count == 2) {
+                push @textLines, sprintf('  ╲  ' . "%-" . $width . "s │", $line);
+            } elsif($count == 3) {
+                push @textLines, sprintf('   ╲ ' . "%-" . $width . "s │", $line);
+            } else {
+                push @textLines, sprintf('   │ ' . "%-" . $width . "s │", $line);
+            }
+        }
+        push @textLines, '   │ ' . ' ' x $width . ' │';
+        push @textLines, '   ╰─' . '─' x $width . '─╯';
+    }
+
 	foreach my $w (1 .. $image->{'base'}->{'width'}){
 		foreach my $h (1 .. $image->{'base'}->{'height'}){
-			print $out color($image->{'color'}->{'img'}->{$w}->{$h});
+            if ($options->{backgroundColor}){
+			    print $out color('on_' . $image->{'color'}->{'img'}->{$w}->{$h});
+            } else {
+			    print $out color($image->{'color'}->{'img'}->{$w}->{$h});
+            }
 			if (defined($options->{'overlay'}->{'img'}->{$w}->{$h})){
-			print $out color('white');
+			    print $out color('white');
 			    print $options->{'overlay'}->{'img'}->{$w}->{$h};
 			} elsif (defined($image->{'edge'}->{'img'}->{$w}->{$h})){
 				print $out $image->{'edge'}->{'img'}->{$w}->{$h};
@@ -341,14 +412,25 @@ sub printImage {
 				if ( defined($options->{filter}) ){ 
 					print $out " ";
 				} else {
-					my $char = $#master_ascii * $image->{'base'}->{'img'}->{$w}->{$h};
-					if ($char < 0){ $char = 0; }
-					if ($char > $#master_ascii){ $char = $#master_ascii; }
-					print $out $master_ascii[$char];
+                    if ($options->{backgroundColor}){
+                        print $out color('black');
+                        my $char = $#alt_ascii * $image->{'base'}->{'img'}->{$w}->{$h};
+                        if ($char < 0){ $char = 0; }
+                        if ($char > $#alt_ascii){ $char = $#alt_ascii; }
+                        print $out $alt_ascii[$char];
+                    } else {
+                        my $char = $#master_ascii * $image->{'base'}->{'img'}->{$w}->{$h};
+                        if ($char < 0){ $char = 0; }
+                        if ($char > $#master_ascii){ $char = $#master_ascii; }
+                        print $out $master_ascii[$char];
+                    }
 				}
 			}
 		}
-		print $out color('reset');
+        print $out color('reset');
+        if ($options->{text}){
+            print ($textLines[$w - 1] ? " " . $textLines[$w - 1] : '');
+        }
 		print $out "\n";
 	}
 }

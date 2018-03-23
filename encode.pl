@@ -5,14 +5,34 @@ use warnings;
 use Ascii;
 use String::ShellQuote;
 
-my $movie = shift;
-my $out = shift;
-my $size = 160;
-my $filter = 1.4;
-my $print = undef;
+use Getopt::Long;
 
-if (!$out){
-	print "usage: <input file> <output file\n";
+my %options = ();
+
+sub getUsage {
+    print "usage: $0 <file> [<options>]\n";
+    exit;
+}
+
+GetOptions(\%options,
+    'size=i',
+    'file=s',
+    'text=s',
+    'edge=i',
+    'overlayColor=s',
+    'edgeOnly',
+    'backgroundcolor|bg'
+) or getUsage();
+
+my $inputFile = shift;
+my $outputFile = shift;
+
+my $size = (defined($options{'size'}) ? $options{'size'} : 60);
+
+if (! $inputFile) { getUsage(); }
+
+if (!$outputFile){
+	print "usage: <input file> <output file>\n";
 	exit;
 }
 
@@ -21,7 +41,7 @@ my $dir = '/tmp/.asciimovie' . rand(10000000) . '/';
 
 mkdir $dir;
 
-my $cmd = sprintf('avconv -i %s -r %s -f image2 %s%s.jpg &', shell_quote($movie), $fps, $dir,  '%0d');
+my $cmd = sprintf('avconv -i %s -r %s -f image2 %s%s.jpg &', shell_quote($inputFile), $fps, $dir,  '%0d');
 
 print "$cmd\n";
 system $cmd;
@@ -35,17 +55,21 @@ while ($continue == 1){
 	print "$file\n";
 	my $image = Ascii::getImage($file, $size, {});
 	if ($count == 1){
-		open my $fh, ">", $out;
+		open my $fh, ">", $outputFile or die "Failed to open $outputFile\n";
 		print $fh $image->{base}->{'width'} . "\n";
 		print $fh "$fps\n";
 		close $fh;
 		
 	}
-	if ($filter){
-		$image = Ascii::edgeFilter($image, $filter);
-	}
-	Ascii::printImage($image, { 'filter' => $print, 'outfile' => $out } );
+    if ($options{'edge'}){
+        $image = Ascii::edgeFilter($image, $options{'edge'});
+    }
+	Ascii::printImage($image, 
+        { 
+            'filter' => $options{'edgeOnly'},
+            'outfile' => $outputFile,
+            'append' => 1
+        } );
 	unlink $file;
 	$count++;
-	#Ascii::printImage($image, { 'filter' => $print } );
 }
